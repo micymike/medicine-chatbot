@@ -1,0 +1,13 @@
+ctransformers
+sentence-transformers
+pinecone-client
+langchain
+flask
+langchain-community
+pypdf
+python-dotenv
+replicate
+gunicorn
+PyPDF2
+langchain_community
+google-generativeai

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elderly Companion</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'header-bg': '#434f94',
+                        'header-bg-dark': '#1a1a2e',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .bg-image {
+            background-image: url('image/starlets.jpg');
+        }
+        .msg-container-send {
+            background-color: #c7eaff;
+            color: #333;
+        }
+        .msg-container {
+            background-color: #434f94;
+            color: #fffefe;
+        }
+        @keyframes blink {
+            50% { opacity: 1; }
+        }
+        .typing-indicator span:nth-of-type(1) { animation: 1s blink infinite 0.3333s; }
+        .typing-indicator span:nth-of-type(2) { animation: 1s blink infinite 0.6666s; }
+        .typing-indicator span:nth-of-type(3) { animation: 1s blink infinite 0.9999s; }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .voice-input-btn.active { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-image bg-cover bg-center bg-no-repeat bg-fixed text-white transition-all duration-300 ease-in-out">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white bg-opacity-90 dark:bg-gray-800 dark:bg-opacity-90 rounded-lg shadow-lg overflow-hidden">
+            <div class="bg-header-bg dark:bg-header-bg-dark text-white p-4 flex items-center justify-between rounded-t-lg">
+                <div class="flex items-center">
+                    <i class="fas fa-robot text-3xl mr-2"></i>
+                    <span class="text-lg font-semibold">Elderly Companion-Chatbot</span>
+                </div>
+                <div id="darkModeToggle" class="cursor-pointer">
+                    <i class="fas fa-moon"></i>
+                </div>
+            </div>
+            <div id="messageFormeight" class="h-96 overflow-y-auto p-4 bg-white dark:bg-gray-700">
+                <!-- Initial message -->
+                <div class="flex mb-4">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-robot text-2xl"></i>
+                    </div>
+                    <div class="ml-3 msg-container rounded-lg py-2 px-3 max-w-[70%]">
+                        <p>Hello 👋 I'm here to help you with questions related to Your Health! Please feel free to interact 😊</p>
+                        <span class="text-xs text-gray-500 mt-1 block">Now</span>
+                    </div>
+                </div>
+            </div>
+            <div class="typing-indicator hidden p-2 bg-gray-200 dark:bg-gray-600 rounded-lg mb-2 mx-4">
+                <span class="h-2 w-2 bg-gray-500 rounded-full inline-block mr-1 opacity-40"></span>
+                <span class="h-2 w-2 bg-gray-500 rounded-full inline-block mr-1 opacity-40"></span>
+                <span class="h-2 w-2 bg-gray-500 rounded-full inline-block opacity-40"></span>
+            </div>
+            <div class="p-4 bg-white dark:bg-gray-700">
+                <form id="messageArea" class="flex flex-col">
+                    <div class="flex items-end">
+                        <textarea id="text" name="msg" placeholder="Type your message..." class="flex-grow p-2 rounded-lg text-black border dark:border-gray-600 dark:bg-gray-800 dark:text-white resize-none h-24" required></textarea>
+                        <div class="flex ml-2">
+                            <button type="submit" id="send" class="text-header-bg dark:text-blue-400 text-2xl p-2"><i class="fas fa-location-arrow"></i></button>
+                            <button type="button" id="clearChat" class="text-red-500 text-2xl p-2"><i class="fas fa-trash"></i></button>
+                            <button type="button" id="voiceInputBtn" class="text-blue-500 dark:text-blue-400 text-2xl p-2 voice-input-btn"><i class="fas fa-microphone"></i></button>
+                            <label for="imageUpload" class="text-green-500 text-2xl p-2 cursor-pointer">
+                                <i class="fas fa-image"></i>
+                            </label>
+                            <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                        </div>
+                    </div>
+                    <img id="imagePreview" src="#" alt="Image preview" class="max-w-full max-h-48 mt-2 hidden">
+                </form>
+                <div class="error-message text-red-500 mt-2 hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            function appendMessage(html) {
+                $("#messageFormeight").append(html);
+                scrollToBottom();
+            }
+
+            function scrollToBottom() {
+                var chat = $('#messageFormeight');
+                chat.scrollTop(chat.prop("scrollHeight"));
+            }
+
+            function getSuggestion() {
+                $.get("/get_suggestion")
+                    .done(function(data) {
+                        $("#text").attr("placeholder", data.suggestion);
+                    })
+                    .fail(function(jqXHR, textStatus, errorThrown) {
+                        showErrorMessage("Failed to get suggestion. Please try again later.");
+                    });
+            }
+
+            function showTypingIndicator() {
+                $(".typing-indicator").removeClass('hidden');
+                scrollToBottom();
+            }
+
+            function hideTypingIndicator() {
+                $(".typing-indicator").addClass('hidden');
+            }
+
+            function showErrorMessage(message) {
+                $(".error-message").text(message).removeClass('hidden');
+                setTimeout(function() {
+                    $(".error-message").addClass('hidden');
+                }, 5000);
+            }
+
+            let selectedFile = null;
+
+            $("#imageUpload").change(function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        $("#imagePreview").attr("src", e.target.result).removeClass('hidden');
+                    }
+                    reader.readAsDataURL(file);
+                    selectedFile = file;
+                }
+            });
+
+            $("#messageArea").on("submit", function(event) {
+                event.preventDefault();
+
+                const msg = $("#text").val();
+                const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                let userHtml = `
+                    <div class="flex justify-end mb-4">
+                        <div class="msg-container-send rounded-lg py-2 px-3 max-w-[70%]">
+                            <p>${msg}</p>
+                            <span class="text-xs text-gray-500 mt-1 block">${currentTime}</span>
+                        </div>
+                        <div class="ml-3 flex-shrink-0">
+                            <i class="fas fa-user text-2xl"></i>
+                        </div>
+                    </div>`;
+                
+                if (selectedFile) {
+                    userHtml += `
+                        <div class="flex justify-end mb-4">
+                            <div class="msg-container-send rounded-lg py-2 px-3">
+                                <img src="${$("#imagePreview").attr("src")}" class="max-w-[200px] max-h-[200px]" />
+                                <span class="text-xs text-gray-500 mt-1 block">${currentTime}</span>
+                            </div>
+                        </div>`;
+                }
+                
+                appendMessage(userHtml);
+
+                showTypingIndicator();
+
+                const formData = new FormData();
+                formData.append('msg', msg);
+                if (selectedFile) {
+                    formData.append('image', selectedFile);
+                }
+
+                $.ajax({
+                    data: formData,
+                    type: "POST",
+                    url: "/get",
+                    processData: false,
+                    contentType: false,
+                }).done(function(data) {
+                    hideTypingIndicator();
+                    const botHtml = `
+                        <div class="flex mb-4">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-robot text-2xl"></i>
+                            </div>
+                            <div class="ml-3 msg-container rounded-lg py-2 px-3 max-w-[70%]">
+                                <p>${data.response}</p>
+                                <span class="text-xs text-gray-500 mt-1 block">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        </div>`;
+                    appendMessage(botHtml);
+                }).fail(function(jqXHR, textStatus, errorThrown) {
+                    hideTypingIndicator();
+                    showErrorMessage(jqXHR.responseJSON ? jqXHR.responseJSON.error : "An error occurred. Please try again.");
+                });
+
+                $("#text").val("");
+                $("#imagePreview").attr("src", "#").addClass('hidden');
+                selectedFile = null;
+                getSuggestion();
+            });
+
+            $("#send").on("click", function() {
+                $("#messageArea").submit();
+            });
+
+            $("#clearChat").click(function() {
+                $("#messageFormeight").empty();
+                const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                appendMessage(`
+                    <div class="flex mb-4">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-robot text-2xl"></i>
+                        </div>
+                        <div class="ml-3 msg-container rounded-lg py-2 px-3 max-w-[70%]">
+                            <p>Hello 👋 I'm here to help you with questions related to Your Health! Please feel free to interact 😊</p>
+                            <span class="text-xs text-gray-500 mt-1 block">${currentTime}</span>
+                        </div>
+                    </div>`);
+            });
+
+            $("#darkModeToggle").click(function() {
+                $("html").toggleClass("dark");
+                $(this).find("i").toggleClass("fa-moon fa-sun");
+            });
+
+            function startVoiceInput() {
+                if (!('webkitSpeechRecognition' in window)) {
+                    showErrorMessage("Speech recognition is not supported in your browser. Please try using Chrome.");
+                    return;
+                }
+
+                const recognition = new webkitSpeechRecognition();
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    console.log('Voice recognition started.');
+                    $('#voiceInputBtn').addClass('active');
+                };
+
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    $('#text').val(transcript);
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Voice recognition error:', event.error);
+                    $('#voiceInputBtn').removeClass('active');
+                    if (event.error === 'no-speech') {
+                        showErrorMessage("No speech was detected. Please try again.");
+                    } else if (event.error === 'audio-capture') {
+                        showErrorMessage("No microphone was found. Ensure that a microphone is installed and that microphone settings are configured correctly.");
+                    } else if (event.error === 'not-allowed') {
+                        showErrorMessage("Permission to use microphone was denied. Please allow microphone access and try again.");
+                    } else {
+                        showErrorMessage("An error occurred with the speech recognition. Please try again.");
+                    }
+                };
+
+                recognition.onend = function() {
+                    console.log('Voice recognition ended.');
+                    $('#voiceInputBtn').removeClass('active');
+                };
+
+                recognition.start();
+            }
+
+            $('#voiceInputBtn').click(function() {
+                startVoiceInput();
+            });
+
+            getSuggestion();
+            setInterval(getSuggestion, 10000);
+        });
+    </script>
+</body>
+</html>
